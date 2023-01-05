@@ -68,6 +68,9 @@ M._generate_command = function(run_settings)
 end
 
 M.run = function(run_settings)
+    if run_settings == nil or next(run_settings) == nil then
+        error('run settings is empty')
+    end
     local original_win = vim.api.nvim_get_current_win()
     vim.cmd.vnew()
     -- Make it a scratch buffer
