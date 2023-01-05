@@ -16,17 +16,69 @@ local move_cursor = function(prompt_win, nrrows)
     vim.api.nvim_win_set_cursor(prompt_win, {new_line, 0})
 end
 
-M.run = function()
+local var_placeholders = {
+    ['${file}'] = function(_)
+        return vim.fn.expand("%:p")
+    end,
+    ['${fileBasename}'] = function(_)
+        return vim.fn.expand("%:t")
+    end,
+    ['${fileBasenameNoExtension}'] = function(_)
+        return vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r")
+    end,
+    ['${fileDirname}'] = function(_)
+        return vim.fn.expand("%:p:h")
+    end,
+    ['${fileExtname}'] = function(_)
+        return vim.fn.expand("%:e")
+    end,
+    ['${relativeFile}'] = function(_)
+        return vim.fn.expand("%:.")
+    end,
+    ['${relativeFileDirname}'] = function(_)
+        return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
+    end,
+    ['${workspaceFolder}'] = function(_)
+        return vim.fn.getcwd()
+    end,
+    ['${workspaceFolderBasename}'] = function(_)
+        return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+    end,
+    ['${env:([%w_]+)}'] = function(match)
+        return os.getenv(match) or ''
+    end,
+}
+
+local expand_values = function(option)
+    for key, fn in pairs(var_placeholders) do
+        option = option:gsub(key, fn)
+    end
+    return option
+end
+
+M._generate_command = function(run_settings)
+    local command_candidate = {}
+    table.insert(command_candidate, run_settings.type)
+    table.insert(command_candidate, run_settings.command)
+    for _, v in ipairs(run_settings.args) do
+        table.insert(command_candidate, v)
+    end
+    local command = vim.tbl_map(expand_values, command_candidate)
+    return command
+end
+
+M.run = function(run_settings)
     local original_win = vim.api.nvim_get_current_win()
     vim.cmd.vnew()
+    -- Make it a scratch buffer
+    vim.keymap.set('n', 'q', '<cmd>close<cr>', { buffer = 0, silent = true, noremap = true })
+    vim.cmd{cmd = "setlocal", args = {"buftype=nofile"}}
+    vim.cmd{cmd = "setlocal", args = {"bufhidden=hide"}}
+    vim.cmd{cmd = "setlocal", args = {"noswapfile"}}
     local bufnr = vim.api.nvim_get_current_buf()
     local prompt_win = vim.api.nvim_get_current_win()
     vim.api.nvim_set_current_win(original_win)
-    program = "/home/edvard/sources/snpseq/clarity-snpseq/clarity-ext/clarity_ext/cli.py"
-    args = { "--level", "INFO", "extension", "--cache", "False", "clarity_ext_scripts.dilution.dna_dilution_start", "test" }
-    local command = args
-    table.insert(command, 1, program)
-    table.insert(command, 1, "python")
+    local command = M._generate_command(run_settings)
     local err_output = {}
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Waiting for script output ..."})
     vim.fn.jobstart(command, {
