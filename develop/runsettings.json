@@ -1,5 +1,0 @@
-{
-    "type": "python",
-    "command": "/home/edvard/sources/snpseq/clarity-snpseq/clarity-ext/clarity_ext/cli.py",
-    "args": [ "--level", "INFO", "extension", "--cache", "False", "${env:HOME}", "test" ]
-}
