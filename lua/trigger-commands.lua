@@ -60,6 +60,9 @@ M._generate_command = function(run_settings)
     local command_candidate = {}
     table.insert(command_candidate, run_settings.type)
     table.insert(command_candidate, run_settings.command)
+    if run_settings['args'] == nil then
+        run_settings.args = {}
+    end
     for _, v in ipairs(run_settings.args) do
         table.insert(command_candidate, v)
     end
