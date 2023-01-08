@@ -70,6 +70,14 @@ M._generate_command = function(run_settings)
     return command
 end
 
+M._generate_command_multi = function(run_settings)
+    local commands = {}
+    for _, setting in ipairs(run_settings) do
+        table.insert(commands, M._generate_command(setting))
+    end
+    return commands
+end
+
 local spawn_scratch_window = function()
     local original_win = vim.api.nvim_get_current_win()
     vim.cmd.vnew()
@@ -132,6 +140,45 @@ M.run_single = function(run_settings)
         on_exit = function(_, exit_code, _)
             show_errors(exit_code, err_output, bufnr, prompt_win)
         end
+    })
+end
+
+M.run_rest_call = function(run_settings)
+    if run_settings == nil or next(run_settings) == nil then
+        error('run settings is empty')
+    end
+    local commands = M._generate_command_multi(run_settings)
+    if #commands ~= 2 then
+        local found = #commands
+        if found == 0 then found = 1 end
+        error('For rest calls, 2 run-settings are expected! Found: ' .. found)
+    end
+    local bufnr, prompt_win = spawn_scratch_window()
+    local server_command = commands[1]
+    local rest_command = commands[2]
+    local err_output = {}
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Waiting for script output ..."})
+    vim.fn.jobstart(server_command, {
+        stdout_buffered = true,
+        on_stdout = function(_, data)
+            show(data, bufnr, prompt_win)
+        end,
+        on_stderr = function(_, data)
+            err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
+        end,
+        on_exit = function(_, exit_code, _)
+            P(err_output)
+            show_errors(exit_code, err_output, bufnr, prompt_win)
+        end
+    })
+    vim.fn.jobstart(rest_command, {
+        stdout_buffered = true,
+        on_stdout = function(_, data)
+            show(data, bufnr, prompt_win)
+        end,
+        on_stderr = function(_, data)
+            show(data, bufnr, prompt_win)
+        end,
     })
 end
 

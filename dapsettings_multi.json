@@ -1,0 +1,11 @@
+[
+  {
+    "type": "python",
+    "command": "${workspaceFolder}/develop/server_proxy.py"
+  },
+  {
+    "type": "python",
+    "command": "${workspaceFolder}/develop/rest_proxy.py"
+  }
+]
+

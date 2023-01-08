@@ -37,4 +37,23 @@ describe('trigger_commands', function()
         }
         assert.are.same(expected, command)
     end)
+    it('can read multi command table', function()
+        local run_settings = {
+            {
+                type = "python",
+                command = "somefile.py",
+            },
+            {
+                type = "python",
+                command = "someotherfile.py",
+            }
+        }
+        local command = require'trigger-commands'._generate_command_multi(run_settings)
+        local expected = {
+            {"python", "somefile.py"},
+            {"python", "someotherfile.py"},
+        }
+        assert.are.same(expected, command)
+
+    end)
 end)
