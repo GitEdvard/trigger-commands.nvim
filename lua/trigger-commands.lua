@@ -70,6 +70,11 @@ M._generate_command = function(run_settings)
     return command
 end
 
+local wrap_command = function(command)
+    local command_str = table.concat(command, " ") .. "\n"
+    return command_str
+end
+
 M._generate_command_multi = function(run_settings)
     local commands = {}
     for _, setting in ipairs(run_settings) do
@@ -113,12 +118,19 @@ local show = function(data, bufnr, prompt_win)
 end
 
 local show_errors = function(exit_code, err_output, bufnr, prompt_win)
-    if exit_code ~= 0 then
-        vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"Program returned error. Output written to the quickfix."})
-        move_cursor(prompt_win, 1)
-        local vim_script_arr = to_vim_script_arr(err_output)
-        vim.cmd { cmd = 'cgetexpr', args = {vim_script_arr} }
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"Program returned error. Output written to the quickfix."})
+    move_cursor(prompt_win, 1)
+    local vim_script_arr = to_vim_script_arr(err_output)
+    vim.cmd { cmd = 'cgetexpr', args = {vim_script_arr} }
+end
+
+local has_errors = function(err_output)
+    for _, v in ipairs(err_output) do
+        if v ~= nil and #v > 0 then
+            return true
+        end
     end
+    return false
 end
 
 M.run_single = function(run_settings)
@@ -138,9 +150,31 @@ M.run_single = function(run_settings)
             err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
         end,
         on_exit = function(_, exit_code, _)
-            show_errors(exit_code, err_output, bufnr, prompt_win)
+            if has_errors(err_output) then
+                show_errors(exit_code, err_output, bufnr, prompt_win)
+            end
         end
     })
+end
+
+local generate_rest_command = function(command)
+    local command_str = wrap_command(command)
+    local first_part = [[
+    max_attemts=2
+    attempts_counter=0
+    ]]
+    local second_part = [[
+until [ $? -eq 0 ]; do
+if [ ${attempts_counter} -eq ${max_attemts} ]; then
+    exit
+    fi
+    attempts_counter=$((attempts_counter+1))
+    sleep 0.5
+    ]]
+    local third_part = [[
+    done
+    ]]
+    return first_part .. command_str .. second_part .. command_str .. third_part
 end
 
 M.run_rest_call = function(run_settings)
@@ -155,10 +189,10 @@ M.run_rest_call = function(run_settings)
     end
     local bufnr, prompt_win = spawn_scratch_window()
     local server_command = commands[1]
-    local rest_command = commands[2]
+    local rest_command = generate_rest_command(commands[2])
     local err_output = {}
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Waiting for script output ..."})
-    vim.fn.jobstart(server_command, {
+    local server_job_id = vim.fn.jobstart(server_command, {
         stdout_buffered = true,
         on_stdout = function(_, data)
             show(data, bufnr, prompt_win)
@@ -167,8 +201,9 @@ M.run_rest_call = function(run_settings)
             err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
         end,
         on_exit = function(_, exit_code, _)
-            P(err_output)
-            show_errors(exit_code, err_output, bufnr, prompt_win)
+            if has_errors(err_output) then
+                show_errors(exit_code, err_output, bufnr, prompt_win)
+            end
         end
     })
     vim.fn.jobstart(rest_command, {
@@ -176,9 +211,9 @@ M.run_rest_call = function(run_settings)
         on_stdout = function(_, data)
             show(data, bufnr, prompt_win)
         end,
-        on_stderr = function(_, data)
-            show(data, bufnr, prompt_win)
-        end,
+        on_exit = function(_, _, _)
+            vim.fn.jobstop(server_job_id)
+        end
     })
 end
 
