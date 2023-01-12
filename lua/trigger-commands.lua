@@ -117,7 +117,7 @@ local show = function(data, bufnr, prompt_win)
     move_cursor(prompt_win, #data)
 end
 
-local show_errors = function(exit_code, err_output, bufnr, prompt_win)
+local show_errors = function(err_output, bufnr, prompt_win)
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"Program returned error. Output written to the quickfix."})
     move_cursor(prompt_win, 1)
     local vim_script_arr = to_vim_script_arr(err_output)
@@ -150,8 +150,8 @@ M.run_single = function(run_settings)
             err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
         end,
         on_exit = function(_, exit_code, _)
-            if has_errors(err_output) then
-                show_errors(exit_code, err_output, bufnr, prompt_win)
+            if exit_code ~= 0 then
+                show_errors(err_output, bufnr, prompt_win)
             end
         end
     })
@@ -202,7 +202,7 @@ M.run_rest_call = function(run_settings)
         end,
         on_exit = function(_, exit_code, _)
             if has_errors(err_output) then
-                show_errors(exit_code, err_output, bufnr, prompt_win)
+                show_errors(err_output, bufnr, prompt_win)
             end
         end
     })
