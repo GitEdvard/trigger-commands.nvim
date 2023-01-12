@@ -21,7 +21,7 @@ Example single command setup:
 ```
 {
   "type": "python",
-  "command": "${workspaceFolder}/hello.py",
+  "program": "${workspaceFolder}/hello.py",
   "args": {"world!"}
 }
 ```
@@ -42,12 +42,12 @@ Example rest service command setup:
 [
   {
     "type": "python",
-    "command": "${workspaceFolder}/myserver.py",
+    "program": "${workspaceFolder}/myserver.py",
     "args": { "--port", "2000" }
   },
   {
     "type": "curl",
-    "command": "localhost:2000/api/hello"
+    "program": "localhost:2000/api/hello"
   }
 ]
 ```
@@ -79,14 +79,14 @@ vim.keymap.set('n', '<leader>ur', trigger_command, opts)
 
 These variable names are taken from nvim-dap: https://github.com/mfussenegger/nvim-dap/blob/master/doc/dap.txt
 
-For a single command setting, one can use the same setting as nvim-dap. However, trigger-commands will only look for the arguments "type", "command" and "args".
+For a single command setting, one can use the same setting as nvim-dap. However, trigger-commands will only look for the arguments "type", "program" and "args".
 
 Example using an enviroment variable in run settings:
 
 ```
 {
   "type": "python",
-  "command": "${workspaceFolder}/hello.py",
+  "program": "${workspaceFolder}/hello.py",
   "args": {"${env:HELLO}"}
 }
 ```

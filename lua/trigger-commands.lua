@@ -59,7 +59,7 @@ end
 M._generate_command = function(run_settings)
     local command_candidate = {}
     table.insert(command_candidate, run_settings.type)
-    table.insert(command_candidate, run_settings.command)
+    table.insert(command_candidate, run_settings.program)
     if run_settings['args'] == nil then
         run_settings.args = {}
     end
