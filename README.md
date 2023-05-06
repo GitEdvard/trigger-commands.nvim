@@ -29,12 +29,13 @@ Corresponding init.vim
 ```
 local run_settings = require'read-settings'.read_json('.runsettings.json')
 local trigger_command = function()
-    require'trigger-commands'.run_single(run_settings)
+    local cmd = require'trigger_commands'.generate_command(run_settings)
+    require'trigger-commands'.run_single(cmd)
 end
 local opts = { noremap = true, silent = true }
 vim.keymap.set('n', '<leader>ur', trigger_command, opts)
 ```
-
+Note the difference from rest call commands, regarding run_settings instead of cmd.
 
 Example rest service command setup:
 

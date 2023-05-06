@@ -56,7 +56,7 @@ local expand_values = function(option)
     return option
 end
 
-M._generate_command = function(run_settings)
+M.generate_command = function(run_settings)
     local command_candidate = {}
     table.insert(command_candidate, run_settings.type)
     table.insert(command_candidate, run_settings.program)
@@ -78,7 +78,7 @@ end
 M._generate_command_multi = function(run_settings)
     local commands = {}
     for _, setting in ipairs(run_settings) do
-        table.insert(commands, M._generate_command(setting))
+        table.insert(commands, M.generate_command(setting))
     end
     return commands
 end
@@ -133,12 +133,8 @@ local has_errors = function(err_output)
     return false
 end
 
-M.run_single = function(run_settings)
-    if run_settings == nil or next(run_settings) == nil then
-        error('run settings is empty')
-    end
+M.run_single = function(command)
     local bufnr, prompt_win = spawn_scratch_window()
-    local command = M._generate_command(run_settings)
     local err_output = {}
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Waiting for script output ..."})
     vim.fn.jobstart(command, {
