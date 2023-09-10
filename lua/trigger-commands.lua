@@ -16,4 +16,7 @@ M.run_silent = function(input)
   require'silent-commands'.run_silent(input)
 end
 
+M.generate_command = function(run_settings)
+  require'rest-commands'.generate_command(run_settings)
+end
 return M
