@@ -8,6 +8,10 @@ M.run_single = function(command)
   require'scratch-commands'.run_single(command)
 end
 
+M.run_launcher = function(command, error_keyword)
+  require'scratch-commands'.run_launcher(command, error_keyword)
+end
+
 M.run_rest_call = function(run_settings)
   require'rest-commands'.run_rest_call(run_settings)
 end
@@ -19,4 +23,5 @@ end
 M.generate_command = function(run_settings)
   require'rest-commands'.generate_command(run_settings)
 end
+
 return M
