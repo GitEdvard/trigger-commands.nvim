@@ -1,6 +1,6 @@
 local M = {}
 
-local gather_output = function(data, build_output)
+M.gather_output = function(data, build_output)
     if not data then
         return build_output
     end
@@ -20,7 +20,7 @@ local to_vim_script_arr = function(lua_table)
     return '[\'' .. table.concat(escaped_table, '\',\'') .. '\']'
 end
 
-local show_errors = function(build_output)
+M.show_errors = function(build_output)
     local vim_script_arr = to_vim_script_arr(build_output)
     vim.cmd { cmd = 'cgetexpr', args = {vim_script_arr} }
 end
@@ -36,15 +36,15 @@ M.run_silent = function(input)
   vim.fn.jobstart(command, {
     stdout_buffered = true,
     on_stdout = function(_, data)
-      build_output = gather_output(data, build_output)
+      build_output = M.gather_output(data, build_output)
     end,
     on_stderr = function(_, data)
-      build_output = gather_output(data, build_output)
+      build_output = M.gather_output(data, build_output)
     end,
     on_exit = function(_, exit_code, _)
       if exit_code ~= 0 then
         print(failed_string .. "Errors written to quickfix")
-        show_errors(build_output)
+        M.show_errors(build_output)
       else
         print(succeed_string)
       end

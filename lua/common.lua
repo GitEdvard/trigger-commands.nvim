@@ -5,6 +5,7 @@ local move_cursor = function(prompt_win, nrrows)
     local new_line = pos[1] + nrrows
     vim.api.nvim_win_set_cursor(prompt_win, {new_line, 0})
 end
+
 M.spawn_scratch_window = function()
     local original_win = vim.api.nvim_get_current_win()
     vim.cmd.vnew()
@@ -106,7 +107,7 @@ M.show = function(data, bufnr, prompt_win)
         return
     end
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, data)
-    if not prompt_win == -1 then
+    if prompt_win ~= nil then
       move_cursor(prompt_win, #data)
     end
 end

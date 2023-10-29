@@ -24,4 +24,8 @@ M.generate_command = function(run_settings)
   require'rest-commands'.generate_command(run_settings)
 end
 
+M.run_poly = function(instructions)
+  require'poly-commands'.run_poly(instructions)
+end
+
 return M
