@@ -14,6 +14,8 @@ local show_and_gather_err = require'common'.show_and_gather_err
 
 local spawn_console_window_silent = require'common'.spawn_console_window_silent
 
+local mysplit = require'common'.mysplit
+
 run_silent_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={succeed_string = "Build succeeded!", failed_string = "Build failed. "}})
@@ -68,6 +70,25 @@ local has_any_keyword = function(bufnr, keywords)
   return false
 end
 
+local transform_errors = function(err_output)
+  local new_output = {}
+  for _, row in pairs(err_output) do
+    _, _, path, line = row:find("%s*at%s*(.*)%(.*:(%d+)%)")
+    if path ~= nil then
+      local split_path = mysplit(path, "%p")
+      table.remove(split_path)
+      local family = split_path[1]
+      local project = split_path[2]
+      local modified_path = family .. "." .. project  .. "\\src\\" .. table.concat(split_path, "\\") .. ".java"
+      local update_row = " att " .. modified_path .. "(" .. line .. ")"
+      table.insert(new_output, update_row)
+    else
+      table.insert(new_output, row)
+    end
+  end
+  return new_output
+end
+
 jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={succeed_string = "Build succeeded!", failed_string = "Build failed. "}})
@@ -91,7 +112,8 @@ jobstart_hidden_scratch_rec = function(instructions, i)
       local show_err = has_any_keyword(bufnr, error_keywords)
       if show_err then
         print(failed_string .. ", errors written to quickfix")
-        show_errors(err_output, bufnr, prompt_win)
+        local new_output = transform_errors(err_output)
+        show_errors(new_output, bufnr, prompt_win)
       elseif i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else

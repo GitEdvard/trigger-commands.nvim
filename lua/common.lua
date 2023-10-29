@@ -31,7 +31,7 @@ local create_new_console_window_silent = function()
     local bufnr = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_name(bufnr, "Console")
     vim.cmd.close()
-    local prompt_win = -1
+    local prompt_win = nil
     return bufnr, prompt_win
 end
 
@@ -58,7 +58,7 @@ end
 local show_console_window = function()
   local bufnr = vim.fn.bufnr("Console")
   local prompt_win = vim.fn.bufwinid("Console")
-  if prompt_win == -1 then
+  if prompt_win == nil then
     vim.cmd.vnew()
     vim.cmd.buffer(bufnr)
     prompt_win = vim.api.nvim_get_current_win()
@@ -93,7 +93,7 @@ M.show_and_gather_err = function(data, err_output, bufnr, prompt_win)
         return err_output
     end
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, data)
-    if not prompt_win == -1 then
+    if prompt_win ~= nil then
       move_cursor(prompt_win, #data)
     end
     for _, row in ipairs(data) do
@@ -124,11 +124,22 @@ end
 
 M.show_errors = function(err_output, bufnr, prompt_win)
     vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, {"Program returned error. Output written to the quickfix."})
-    if not prompt_win == -1 then
+    if prompt_win ~= nil then
       move_cursor(prompt_win, 1)
     end
     local vim_script_arr = to_vim_script_arr(err_output)
     vim.cmd { cmd = 'cgetexpr', args = {vim_script_arr} }
+end
+
+M.mysplit = function (inputstr, sep)
+  if sep == nil then
+          sep = "%s"
+  end
+  local t={}
+  for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+          table.insert(t, str)
+  end
+  return t
 end
 
 
