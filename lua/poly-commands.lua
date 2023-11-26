@@ -1,3 +1,5 @@
+require'globals'
+
 local M = {}
 
 local run_silent = require'silent-commands'.run_silent
@@ -18,12 +20,14 @@ local mysplit = require'common'.mysplit
 
 run_silent_rec = function(instructions, i)
   local input = instructions[i]
-  setmetatable(input, {__index={succeed_string = "Build succeeded!", failed_string = "Build failed. "}})
-  local command, succeed_string, failed_string =
+  setmetatable(input, {__index={cmd_description = "Build"}})
+  P(input)
+  local command, cmd_description =
     input[2],
-    input[3] or input.succeed_string,
-    input[4] or input.failed_string
-  print("Starting...")
+    input[3] or input.cmd_description
+  -- P(command)
+  -- P(cmd_description)
+  print("Starting " .. cmd_description .. "...")
   local build_output = {}
   vim.fn.jobstart(command, {
     stdout_buffered = true,
@@ -35,12 +39,12 @@ run_silent_rec = function(instructions, i)
     end,
     on_exit = function(_, exit_code, _)
       if exit_code ~= 0 then
-        print(failed_string .. ", errors written to quickfix")
+        print(cmd_description .. " failed" .. ", errors written to quickfix")
         show_errors_silent(build_output)
       elseif i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else
-        print(succeed_string)
+        print(cmd_description .. " succeeded!")
       end
     end
   })
@@ -91,14 +95,13 @@ end
 
 jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
-  setmetatable(input, {__index={succeed_string = "Build succeeded!", failed_string = "Build failed. "}})
-  local command, error_keywords, succeed_string, failed_string, bufnr, promt_win =
+  setmetatable(input, {__index={cmd_description = "Build" }})
+  local command, error_keywords, cmd_description, bufnr, promt_win =
     input[2],
     input[3],
-    input[4] or input.succeed_string,
-    input[5] or input.failed_string,
-    input[6],
-    input[7]
+    input[4] or input.cmd_description,
+    input[5],
+    input[6]
   local err_output = {}
   vim.fn.jobstart(command, {
     stdout_buffered = true,
@@ -111,14 +114,14 @@ jobstart_hidden_scratch_rec = function(instructions, i)
     on_exit = function(_, exit_code, _)
       local show_err = has_any_keyword(bufnr, error_keywords)
       if show_err then
-        print(failed_string .. ", errors written to quickfix")
+        print(cmd_description .. " failed" .. ", errors written to quickfix")
         local new_output = transform_errors(err_output)
         show_errors(new_output, bufnr, prompt_win)
       elseif i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else
         show({"Done."}, bufnr, prompt_win)
-        print(succeed_string)
+        print(cmd_description .. " succeeded!")
       end
     end
   })
