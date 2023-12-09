@@ -21,12 +21,9 @@ local mysplit = require'common'.mysplit
 run_silent_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={cmd_description = "Build"}})
-  P(input)
   local command, cmd_description =
     input[2],
     input[3] or input.cmd_description
-  -- P(command)
-  -- P(cmd_description)
   print("Starting " .. cmd_description .. "...")
   local build_output = {}
   vim.fn.jobstart(command, {
@@ -102,6 +99,7 @@ jobstart_hidden_scratch_rec = function(instructions, i)
     input[4] or input.cmd_description,
     input[5],
     input[6]
+  print("Starting " .. cmd_description .. "...")
   local err_output = {}
   vim.fn.jobstart(command, {
     stdout_buffered = true,
