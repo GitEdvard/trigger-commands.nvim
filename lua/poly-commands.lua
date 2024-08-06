@@ -90,15 +90,27 @@ local transform_errors = function(err_output)
   return new_output
 end
 
+local write_console = function(run_dir, bufnr)
+  if run_dir ~= nil then
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, true)
+    local contents = table.concat(lines, "\n")
+    file = io.open(run_dir .. "\\" .. "Console.txt", "w")
+    file:write(contents)
+    file:close()
+    print("contents written to Console.txt")
+  end
+end
+
 jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={cmd_description = "Build" }})
-  local command, error_keywords, cmd_description, bufnr, promt_win =
+  local command, error_keywords, cmd_description, run_dir, bufnr, promt_win  =
     input[2],
     input[3],
     input[4] or input.cmd_description,
-    input[5],
-    input[6]
+    input[5] or nil,
+    input[6],
+    input[7]
   print("Starting " .. cmd_description .. "...")
   local err_output = {}
   vim.fn.jobstart(command, {
@@ -111,6 +123,7 @@ jobstart_hidden_scratch_rec = function(instructions, i)
     end,
     on_exit = function(_, exit_code, _)
       local show_err = has_any_keyword(bufnr, error_keywords)
+      write_console(run_dir, bufnr)
       if show_err then
         print(cmd_description .. " failed" .. ", errors written to quickfix")
         local new_output = transform_errors(err_output)
