@@ -47,12 +47,29 @@ run_silent_rec = function(instructions, i)
   })
 end
 
+run_lua = function(instructions, i)
+  local input = instructions[i]
+  setmetatable(input, {__index={cmd_description = "Build"}})
+  local command, cmd_description =
+    input[2],
+    input[3] or input.cmd_description
+  print("Starting " .. cmd_description .. "...")
+  command()
+  print(cmd_description .. " succeeded")
+  if i < #instructions then
+    coordinate_job_rec(instructions, i + 1)
+  end
+end
+
+
 coordinate_job_rec = function(instructions, i)
   local job_type = instructions[i][1]
   if job_type == "silent" then
     run_silent_rec(instructions, i)
   elseif job_type == "hidden-scratch" then
     jobstart_hidden_scratch_rec(instructions, i)
+  elseif job_type == "lua" then
+    run_lua(instructions, i)
   else
     print("Unrecognized option for job_type: "  .. job_type)
     print("Should be one of 'silent', 'hidden-scratch'")
@@ -129,6 +146,7 @@ jobstart_hidden_scratch_rec = function(instructions, i)
         print(cmd_description .. " failed" .. ", errors written to quickfix")
         local new_output = transform_errors(err_output)
         show_errors(new_output, bufnr, prompt_win)
+        coordinate_job_rec(instructions, i + 1)
       elseif i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else
