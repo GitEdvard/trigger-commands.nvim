@@ -8,15 +8,15 @@ local gather_output = require'silent-commands'.gather_output
 
 local show_errors_silent = require'silent-commands'.show_errors
 
-local show = require'common'.show
+local spawn_console_window_silent = require'edvard_common'.spawn_console_window_silent
 
-local show_errors = require'common'.show_errors
+local show = require("edvard_common").show
 
-local show_and_gather_err = require'common'.show_and_gather_err
+local show_errors = require'edvard_common'.show_errors
 
-local spawn_console_window_silent = require'common'.spawn_console_window_silent
+local show_and_gather_err = require'edvard_common'.show_and_gather_err
 
-local mysplit = require'common'.mysplit
+local mysplit = require'edvard_common'.mysplit
 
 run_silent_rec = function(instructions, i)
   local input = instructions[i]
@@ -119,6 +119,15 @@ local write_console = function(run_dir, bufnr)
   end
 end
 
+local extract_stacktraces = function(data, err_output)
+  for _, v in pairs(data) do:
+    if string.find(v, "Stacktrace") then:
+      table.insert(err_output, v)
+    end
+  end
+  return err_output
+end
+
 jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={cmd_description = "Build" }})
@@ -134,6 +143,7 @@ jobstart_hidden_scratch_rec = function(instructions, i)
   vim.fn.jobstart(command, {
     stdout_buffered = true,
     on_stdout = function(_, data)
+      err_output = extract_stacktraces(data, err_output)
       show(data, bufnr, prompt_win)
     end,
     on_stderr = function(_, data)
