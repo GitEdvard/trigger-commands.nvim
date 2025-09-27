@@ -18,6 +18,8 @@ local show_and_gather_err = require'edvard_common'.show_and_gather_err
 
 local mysplit = require'edvard_common'.mysplit
 
+local inside_traceback = false
+
 run_silent_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={cmd_description = "Build"}})
@@ -120,9 +122,15 @@ local write_console = function(run_dir, bufnr)
 end
 
 local extract_stacktraces = function(data, err_output)
-  for _, v in pairs(data) do:
-    if string.find(v, "Stacktrace") then:
-      table.insert(err_output, v)
+  for _, line in pairs(data) do
+    if inside_traceback then
+      if line:match("^%S") then
+        inside_traceback = false
+      end
+      table.insert(err_output, line)
+    end
+    if string.find(line, "Traceback") then
+      inside_traceback = true
     end
   end
   return err_output
@@ -130,6 +138,7 @@ end
 
 jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
+  local has_stderr = false
   setmetatable(input, {__index={cmd_description = "Build" }})
   local command, error_keywords, cmd_description, run_dir, bufnr, promt_win  =
     input[2],
@@ -139,7 +148,9 @@ jobstart_hidden_scratch_rec = function(instructions, i)
     input[6],
     input[7]
   print("Starting " .. cmd_description .. "...")
+  -- vim.cmd('echom  "' .. cmd_description .. '"...')
   local err_output = {}
+  inside_traceback = false
   vim.fn.jobstart(command, {
     stdout_buffered = true,
     on_stdout = function(_, data)
@@ -147,16 +158,19 @@ jobstart_hidden_scratch_rec = function(instructions, i)
       show(data, bufnr, prompt_win)
     end,
     on_stderr = function(_, data)
-      err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
+      if not (#data == 1 and data[1] == "") then
+        has_stderr = true
+        err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
+      end
     end,
     on_exit = function(_, exit_code, _)
-      local show_err = has_any_keyword(bufnr, error_keywords)
       write_console(run_dir, bufnr)
-      if show_err then
+      if #err_output > 0 then
+        local transformed_errors = transform_errors(err_output)
+        show_errors(transformed_errors, bufnr, prompt_win)
+      end
+      if has_stderr then
         print(cmd_description .. " failed" .. ", errors written to quickfix")
-        local new_output = transform_errors(err_output)
-        show_errors(new_output, bufnr, prompt_win)
-        coordinate_job_rec(instructions, i + 1)
       elseif i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else
