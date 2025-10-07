@@ -20,6 +20,8 @@ local mysplit = require'edvard_common'.mysplit
 
 local inside_traceback = false
 
+failed_message = ""
+
 run_silent_rec = function(instructions, i)
   local input = instructions[i]
   setmetatable(input, {__index={cmd_description = "Build"}})
@@ -122,18 +124,66 @@ local write_console = function(run_dir, bufnr)
 end
 
 local extract_stacktraces = function(data, err_output)
+  local previous_line = ""
   for _, line in pairs(data) do
+    if string.find(line, "Traceback") then
+      table.insert(err_output, previous_line)
+      inside_traceback = true
+    end
     if inside_traceback then
-      if line:match("^%S") then
+      if not string.find(line, "Traceback") and line:match("^%S") then
         inside_traceback = false
       end
       table.insert(err_output, line)
     end
-    if string.find(line, "Traceback") then
-      inside_traceback = true
-    end
+    previous_line = line
   end
   return err_output
+end
+
+
+jobstart_hidden_scratch_rec_original = function(instructions, i)
+  local input = instructions[i]
+  local has_stderr = false
+  setmetatable(input, {__index={cmd_description = "Build" }})
+  local command, error_keywords, cmd_description, run_dir, bufnr, promt_win  =
+    input[2],
+    input[3],
+    input[4] or input.cmd_description,
+    input[5] or nil,
+    input[6],
+    input[7]
+  print("Starting " .. cmd_description .. "...")
+  -- vim.cmd('echom  "' .. cmd_description .. '"...')
+  local err_output = {}
+  inside_traceback = false
+  vim.fn.jobstart(command, {
+    stdout_buffered = true,
+    on_stdout = function(_, data)
+      show(data, bufnr, prompt_win)
+    end,
+    on_stderr = function(_, data)
+      if not (#data == 1 and data[1] == "") then
+        has_stderr = true
+        err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
+      end
+    end,
+    on_exit = function(_, exit_code, _)
+      write_console(run_dir, bufnr)
+      if #err_output > 0 then
+        local transformed_errors = transform_errors(err_output)
+        show_errors(transformed_errors, bufnr, prompt_win)
+      end
+      if has_stderr then
+        print(cmd_description .. " failed" .. ", errors written to quickfix")
+      elseif i < #instructions then
+        coordinate_job_rec(instructions, i + 1)
+      else
+        show({"Done."}, bufnr, prompt_win)
+        print(cmd_description .. " succeeded!")
+      end
+    end
+  })
 end
 
 jobstart_hidden_scratch_rec = function(instructions, i)
@@ -171,7 +221,9 @@ jobstart_hidden_scratch_rec = function(instructions, i)
       end
       if has_stderr then
         print(cmd_description .. " failed" .. ", errors written to quickfix")
-      elseif i < #instructions then
+        failed_message = cmd_description .. " failed" .. ", errors written to quickfix"
+      end
+      if i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else
         show({"Done."}, bufnr, prompt_win)
@@ -182,6 +234,7 @@ jobstart_hidden_scratch_rec = function(instructions, i)
 end
 
 M.run_poly = function(instructions)
+  failed_message = ""
   local bufnr, prompt_win = spawn_console_window_silent()
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Waiting for script output ..."})
   for _, v in pairs(instructions) do
@@ -192,6 +245,9 @@ M.run_poly = function(instructions)
     end
   end
   coordinate_job_rec(instructions, 1)
+  if not (failed_message == "") then
+    print(failed_message)
+  end
 end
 
 return M
