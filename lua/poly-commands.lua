@@ -125,20 +125,38 @@ end
 
 local extract_stacktraces = function(data, err_output)
   local previous_line = ""
+  local found_errors = false
+  local found_errors_single = false
+  local candidate_stacktrace = {}
+  local candidate_stacktrace_single = {}
   for _, line in pairs(data) do
     if string.find(line, "Traceback") then
-      table.insert(err_output, previous_line)
+      found_errors_single = true
+      table.insert(candidate_stacktrace_single, previous_line)
       inside_traceback = true
     end
     if inside_traceback then
       if not string.find(line, "Traceback") and line:match("^%S") then
+        if line:match("EOFError") then -- handle this for post-analysis only
+          found_errors_single = false
+        end
         inside_traceback = false
+        if found_errors_single then
+          found_errors = true
+          table.insert(candidate_stacktrace_single, line)
+          vim.list_extend(candidate_stacktrace, candidate_stacktrace_single)
+          candidate_stacktrace_single = {}
+        end
+      else
+        table.insert(candidate_stacktrace_single, line)
       end
-      table.insert(err_output, line)
     end
     previous_line = line
   end
-  return err_output
+  if found_errors then
+    vim.list_extend(err_output, candidate_stacktrace)
+  end
+  return found_errors, err_output
 end
 
 
@@ -200,11 +218,15 @@ jobstart_hidden_scratch_rec = function(instructions, i)
   print("Starting " .. cmd_description .. "...")
   -- vim.cmd('echom  "' .. cmd_description .. '"...')
   local err_output = {}
+  local found_errors = false
   inside_traceback = false
   vim.fn.jobstart(command, {
     stdout_buffered = true,
     on_stdout = function(_, data)
-      err_output = extract_stacktraces(data, err_output)
+      found_errors, err_output = extract_stacktraces(data, err_output)
+      if found_errors then
+        has_stderr = true
+      end
       show(data, bufnr, prompt_win)
     end,
     on_stderr = function(_, data)
@@ -222,8 +244,7 @@ jobstart_hidden_scratch_rec = function(instructions, i)
       if has_stderr then
         print(cmd_description .. " failed" .. ", errors written to quickfix")
         failed_message = cmd_description .. " failed" .. ", errors written to quickfix"
-      end
-      if i < #instructions then
+      elseif i < #instructions then
         coordinate_job_rec(instructions, i + 1)
       else
         show({"Done."}, bufnr, prompt_win)
