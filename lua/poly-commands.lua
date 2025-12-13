@@ -123,43 +123,6 @@ local write_console = function(run_dir, bufnr)
   end
 end
 
-local extract_stacktraces = function(data, err_output)
-  local previous_line = ""
-  local found_errors = false
-  local found_errors_single = false
-  local candidate_stacktrace = {}
-  local candidate_stacktrace_single = {}
-  for _, line in pairs(data) do
-    if string.find(line, "Traceback") then
-      found_errors_single = true
-      table.insert(candidate_stacktrace_single, previous_line)
-      inside_traceback = true
-    end
-    if inside_traceback then
-      if not string.find(line, "Traceback") and line:match("^%S") then
-        if line:match("EOFError") then -- handle this for post-analysis only
-          found_errors_single = false
-        end
-        inside_traceback = false
-        if found_errors_single then
-          found_errors = true
-          table.insert(candidate_stacktrace_single, line)
-          vim.list_extend(candidate_stacktrace, candidate_stacktrace_single)
-          candidate_stacktrace_single = {}
-        end
-      else
-        table.insert(candidate_stacktrace_single, line)
-      end
-    end
-    previous_line = line
-  end
-  if found_errors then
-    vim.list_extend(err_output, candidate_stacktrace)
-  end
-  return found_errors, err_output
-end
-
-
 jobstart_hidden_scratch_rec_original = function(instructions, i)
   local input = instructions[i]
   local has_stderr = false
@@ -208,13 +171,14 @@ jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
   local has_stderr = false
   setmetatable(input, {__index={cmd_description = "Build" }})
-  local command, error_keywords, cmd_description, run_dir, bufnr, promt_win  =
+  local command, error_keywords, cmd_description, run_dir, extract_stacktraces, bufnr, promt_win   =
     input[2],
     input[3],
     input[4] or input.cmd_description,
     input[5] or nil,
-    input[6],
-    input[7]
+    input[6] or nil,
+    input[7],
+    input[8]
   print("Starting " .. cmd_description .. "...")
   -- vim.cmd('echom  "' .. cmd_description .. '"...')
   local err_output = {}
@@ -223,9 +187,11 @@ jobstart_hidden_scratch_rec = function(instructions, i)
   vim.fn.jobstart(command, {
     stdout_buffered = true,
     on_stdout = function(_, data)
-      found_errors, err_output = extract_stacktraces(data, err_output)
-      if found_errors then
-        has_stderr = true
+      if extract_stacktraces then
+        found_errors, err_output = extract_stacktraces(data, err_output)
+        if found_errors then
+          has_stderr = true
+        end
       end
       show(data, bufnr, prompt_win)
     end,
