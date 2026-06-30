@@ -167,6 +167,26 @@ jobstart_hidden_scratch_rec_original = function(instructions, i)
   })
 end
 
+local filter_data = function(a_table, pattern_table)
+  local out = {}
+  local pattern_found = false
+  for k, v in ipairs(a_table) do
+    if v ~= nil then
+      for _, single_pattern in ipairs(pattern_table) do
+        if v:find(single_pattern) then
+          pattern_found = true
+        end
+      end
+      if not pattern_found then
+          table.insert(out, v)
+      end
+      pattern_found = false
+    end
+  end
+  return out
+end
+
+
 jobstart_hidden_scratch_rec = function(instructions, i)
   local input = instructions[i]
   local has_stderr = false
@@ -181,6 +201,8 @@ jobstart_hidden_scratch_rec = function(instructions, i)
     input[8]
   print("Starting " .. cmd_description .. "...")
   -- vim.cmd('echom  "' .. cmd_description .. '"...')
+  -- Astrego specific code. Move
+  local filter_table = { "sqlite3%.Cursor", "sqlite3%.Connection" }
   local err_output = {}
   local found_errors = false
   inside_traceback = false
@@ -193,12 +215,17 @@ jobstart_hidden_scratch_rec = function(instructions, i)
           has_stderr = true
         end
       end
-      show(data, bufnr, prompt_win)
+      filtered_data = filter_data(data, filter_table)
+      show(filtered_data, bufnr, prompt_win)
     end,
     on_stderr = function(_, data)
       if not (#data == 1 and data[1] == "") then
-        has_stderr = true
-        err_output = show_and_gather_err(data, err_output, bufnr, prompt_win)
+        -- Astrego specific code
+        if not data[1]:find("findfont") then
+          has_stderr = true
+          filtered_data = filter_data(data, filter_table)
+          err_output = show_and_gather_err(filtered_data, err_output, bufnr, prompt_win)
+        end
       end
     end,
     on_exit = function(_, exit_code, _)
